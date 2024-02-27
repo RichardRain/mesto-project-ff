@@ -2,6 +2,7 @@ import '../pages/index.css';
 import {initialCards} from './cards.js';
 import {makeCard, removeCard, handleLikeButton} from './components/card.js';
 import {openPopup, closePopup} from './components/modal.js';
+import { enableValidation, checkForm} from './components/validation.js';
 
 const cardList = document.querySelector('.places__list');
 let cardToAdd;
@@ -33,6 +34,8 @@ function handlePopup(popup, textFiledName, textFieldDescription) {
       textFiledName.value = profileName.textContent;
       textFieldDescription.value = profileDescription.textContent;
     }
+    const formElement = popup.querySelector('.popup__form');
+    checkForm(formElement);
     openPopup(popup);
   }
 }
@@ -80,4 +83,5 @@ popups.forEach((popup) => {
   })
 });
 
+enableValidation();
 export {handlePopup};
