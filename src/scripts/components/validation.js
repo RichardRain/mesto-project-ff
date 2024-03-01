@@ -1,27 +1,29 @@
-function showInputError(formElement, inputElement, errorMessage) {
-  const errorElement = formElement.querySelector(`.${inputElement.id}-error`);
-  inputElement.classList.add('popup__input-error');
+function showInputError(errorElement, inputElement, errorMessage, validationConfig) {
+  inputElement.classList.add(validationConfig.inputErrorClass);
   errorElement.textContent = errorMessage;
-  errorElement.classList.add('popup__form-input-error-active');
+  errorElement.classList.add(validationConfig.errorClass);
 }
 
-function hideInputError(formElement, inputElement) {
-  const errorElement = formElement.querySelector(`.${inputElement.id}-error`);
-  inputElement.classList.remove('popup__input-error');
-  errorElement.classList.remove('popup__form-input-error-active');
+function hideInputError(errorElement, inputElement, validationConfig) {
+  inputElement.classList.remove(validationConfig.inputErrorClass);
+  errorElement.classList.remove(validationConfig.errorClass);
   errorElement.textContent = '';
 }
 
-function checkInputValidity(formElement, inputElement) {
+function findErrorElement(formElement, inputElement) {
+  return formElement.querySelector(`.${inputElement.id}-error`);
+}
+
+function checkInputValidity(formElement, inputElement, validationConfig) {
   if (!inputElement.validity.valid) {
     if (inputElement.validity.patternMismatch) {
       inputElement.setCustomValidity(inputElement.dataset.errorMessage);
     } else {
       inputElement.setCustomValidity("");
     }
-    showInputError(formElement, inputElement, inputElement.validationMessage);
+    showInputError(formElement, inputElement, inputElement.validationMessage, validationConfig);
   } else {
-    hideInputError(formElement, inputElement);
+    hideInputError(formElement, inputElement, validationConfig);
   }
 }
 
@@ -33,39 +35,51 @@ function hasInvalidInput(inputList) {
   });
 }
 
-function toggleButtonState(inputList, buttonElement) {
+function toggleButtonState(inputList, buttonElement, validationConfig) {
   if (hasInvalidInput(inputList)) {
-    buttonElement.classList.add('popup__button-inactive');
+    buttonElement.classList.add(validationConfig.inactiveButtonClass);
   } else {
-    buttonElement.classList.remove('popup__button-inactive');
+    buttonElement.classList.remove(validationConfig.inactiveButtonClass);
   }
 }
 
-function checkForm(formElement) {
+function clearValidation(formElement, validationConfig) {
   const inputList = Array.from(formElement.querySelectorAll('.popup__input'));
   const buttonElement = formElement.querySelector('.popup__button');
   inputList.forEach((inputElement) => {
-    checkInputValidity(formElement, inputElement);
+    const errorElement = findErrorElement(formElement, inputElement);
+    checkInputValidity(errorElement, inputElement, validationConfig);
   });
-  toggleButtonState(inputList, buttonElement);
+  toggleButtonState(inputList, buttonElement, validationConfig);
 }
 
-function setEventListeners(formElement) {
-  const inputList = Array.from(formElement.querySelectorAll('.popup__input'));
-  const buttonElement = formElement.querySelector('.popup__button');
+  // TODO: Исправить баг: не удаляется класс ошибки инпута когда удаляешь из поля запрещенный в паттерне символ
+function setEventListeners(formElement, validationConfig) {
+  const inputList = Array.from(formElement.querySelectorAll(validationConfig.inputSelector));
+  const buttonElement = formElement.querySelector(validationConfig.submitButtonSelector);
   inputList.forEach((inputElement) => {
     inputElement.addEventListener('input', function () {
-      checkInputValidity(formElement, inputElement);
-      toggleButtonState(inputList, buttonElement);
+      const errorElement = findErrorElement(formElement, inputElement);
+      checkInputValidity(errorElement, inputElement, validationConfig); // !inputElement.validity.valid = true
+      toggleButtonState(inputList, buttonElement, validationConfig); // !inputElement.validity.valid = false
+    });
+  });
+
+  // Временное решение - проверка валидности формы при выходе из фокуса инпута:
+  inputList.forEach((inputElement) => {
+    inputElement.addEventListener('focusout', function () {
+      const errorElement = findErrorElement(formElement, inputElement);
+      checkInputValidity(errorElement, inputElement, validationConfig); // !inputElement.validity.valid = false
+      toggleButtonState(inputList, buttonElement, validationConfig); // !inputElement.validity.valid = false
     });
   });
 }
 
-function enableValidation() {
-  const formList = Array.from(document.querySelectorAll('.popup__form'));
+function enableValidation(validationConfig) {
+  const formList = Array.from(document.querySelectorAll(validationConfig.formSelector));
   formList.forEach((formElement) => {
-    setEventListeners(formElement);
+    setEventListeners(formElement, validationConfig);
   });
 }
 
-export {enableValidation, checkForm};
+export {enableValidation, clearValidation};

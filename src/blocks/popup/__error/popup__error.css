@@ -1,4 +1,4 @@
-.popup__form-input-error {
+.popup__error {
   display: none;
   position: absolute;
   z-index: 1;

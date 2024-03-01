@@ -1,33 +1,123 @@
+import { openPopup, closePopup } from './modal.js';
+import { cohortUrl, token, checkResponse } from '../index.js';
 const cardTemplate = document.querySelector('#card-template').content;
+const cardDeletePopup = document.querySelector('.popup_type_delete');
+const deleteButton = cardDeletePopup.querySelector('.popup__button');
+let cardToRemoveElement;
+let cardToRemoveData;
 
-function makeCard(cardImage, cardTitle, removeCard, handleLikeButton, handleImageClick) {
+function makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, userId) {
   const cardElement = cardTemplate.querySelector('.card').cloneNode(true);
   const cardRemoveButton = cardElement.querySelector('.card__delete-button');
   const cardImageSource = cardElement.querySelector('.card__image');
   const cardTitleText = cardElement.querySelector('.card__title');
   const cardLikeButton = cardElement.querySelector('.card__like-button');
+  const likeNumberElement = cardElement.querySelector('.card__like-number');
 
-  cardImageSource.src = cardImage;
-  cardImageSource.alt = cardTitle;
-  cardTitleText.textContent = cardTitle;
+  cardImageSource.src = cardData.link;
+  cardImageSource.alt = cardData.name;
+  cardTitleText.textContent = cardData.name;
+  likeNumberElement.textContent = cardData.likes.length;
 
-  cardRemoveButton.addEventListener('click', () => removeCard(cardElement));
-  cardLikeButton.addEventListener('click', (evt) => handleLikeButton(evt));
-  cardImageSource.addEventListener('click', () => handleImageClick(cardImage, cardTitle));
+  if (cardData.owner['_id'] === userId) {
+    cardRemoveButton.addEventListener('click', () => handleRemove(cardElement, cardData));
+  } else {
+    cardRemoveButton.remove();
+  }
+
+  cardData.likes.forEach((like) => {
+    if (like['_id'] === userId) {
+      cardLikeButton.classList.add('card__like-button_is-active');
+    }
+  });
+
+  cardLikeButton.addEventListener('click', (evt) => handleLikeButton(evt, cardData, likeNumberElement));
+  cardImageSource.addEventListener('click', () => handleImageClick(cardData.link, cardData.name));
 
   return cardElement;
 }
 
-function removeCard(cardToDelete) {
-  cardToDelete.remove();
+function sendDeleteRequest() {
+  return fetch(`${cohortUrl}/cards/${cardToRemoveData['_id']}`, {
+    method: 'DELETE',
+    headers: {
+      authorization: token
+    }
+  });
 }
 
-function handleLikeButton(evt) {
+function removeCard(cardElement) {
+  sendDeleteRequest()
+    .then((res) => {
+      if (res.ok) {
+        cardElement.remove();
+      } else {
+        return Promise.reject(`Не удалось удалить карточку: ${res.status}`);
+      }
+    })
+    .catch((error) => {
+      console.log(error)
+    })
+
+}
+
+function handleRemove(cardElement, cardData) {
+  cardToRemoveElement = cardElement;
+  cardToRemoveData = cardData;
+  openPopup(cardDeletePopup);
+}
+
+function addLike(cardData) {
+  return fetch(`${cohortUrl}/cards/likes/${cardData['_id']}`, {
+    method: 'PUT',
+    headers: {
+      authorization: token
+    }
+  })
+    .then(checkResponse);
+}
+
+function removeLike(cardData) {
+  return fetch(`${cohortUrl}/cards/likes/${cardData['_id']}`, {
+    method: 'DELETE',
+    headers: {
+      authorization: token
+    }
+  })
+    .then(checkResponse);
+}
+
+function updateLikesCount(cardData, likeNumberElement) {
+  likeNumberElement.textContent = cardData.likes.length;
+}
+
+function handleLikeButton(evt, cardData, likeNumberElement) {
   if (evt.target.classList.contains('card__like-button_is-active')) {
-    evt.target.classList.remove('card__like-button_is-active');
+    removeLike(cardData)
+      .then((cardDataUpdated) => {
+        updateLikesCount(cardDataUpdated, likeNumberElement);
+        evt.target.classList.remove('card__like-button_is-active');
+      })
+      .catch((error) => {
+        console.log(error)
+      })
   } else {
-    evt.target.classList.add('card__like-button_is-active');
+    addLike(cardData)
+      .then((cardDataUpdated) => {
+        updateLikesCount(cardDataUpdated, likeNumberElement);
+        evt.target.classList.add('card__like-button_is-active');
+      })
+      .catch((error) => {
+        console.log(error)
+      })
   }
 }
 
-export {makeCard, removeCard, handleLikeButton};
+deleteButton.addEventListener('click', () => {
+  if (cardToRemoveElement) {
+    removeCard(cardToRemoveElement);
+    closePopup(cardDeletePopup);
+  }
+});
+
+export { makeCard, handleRemove, handleLikeButton };

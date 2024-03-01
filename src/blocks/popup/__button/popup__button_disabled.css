@@ -1,4 +1,4 @@
-.popup__button-inactive {
+.popup__button_disabled {
   opacity: 20%;
   color: #000;
   background-color: transparent;
