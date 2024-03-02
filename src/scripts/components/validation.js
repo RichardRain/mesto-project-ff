@@ -53,24 +53,24 @@ function clearValidation(formElement, validationConfig) {
   toggleButtonState(inputList, buttonElement, validationConfig);
 }
 
-  // TODO: Исправить баг: не удаляется класс ошибки инпута когда удаляешь из поля запрещенный в паттерне символ
 function setEventListeners(formElement, validationConfig) {
   const inputList = Array.from(formElement.querySelectorAll(validationConfig.inputSelector));
   const buttonElement = formElement.querySelector(validationConfig.submitButtonSelector);
   inputList.forEach((inputElement) => {
     inputElement.addEventListener('input', function () {
       const errorElement = findErrorElement(formElement, inputElement);
-      checkInputValidity(errorElement, inputElement, validationConfig); // !inputElement.validity.valid = true
-      toggleButtonState(inputList, buttonElement, validationConfig); // !inputElement.validity.valid = false
+      checkInputValidity(errorElement, inputElement, validationConfig);
+      toggleButtonState(inputList, buttonElement, validationConfig);
     });
   });
 
-  // Временное решение - проверка валидности формы при выходе из фокуса инпута:
+  // Дополнительная проверка валидности формы при выходе из фокуса инпута
+  // Предотвращает появление бага: инпут остается невалидным, если удалить невалидный символ через 'backspace'
   inputList.forEach((inputElement) => {
     inputElement.addEventListener('focusout', function () {
       const errorElement = findErrorElement(formElement, inputElement);
-      checkInputValidity(errorElement, inputElement, validationConfig); // !inputElement.validity.valid = false
-      toggleButtonState(inputList, buttonElement, validationConfig); // !inputElement.validity.valid = false
+      checkInputValidity(errorElement, inputElement, validationConfig);
+      toggleButtonState(inputList, buttonElement, validationConfig);
     });
   });
 }
