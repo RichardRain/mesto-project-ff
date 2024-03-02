@@ -1,8 +1,8 @@
 import '../pages/index.css';
-import { initialCards } from './cards.js';
 import { makeCard, handleRemove, handleLikeButton } from './components/card.js';
 import { openPopup, closePopup } from './components/modal.js';
-import { enableValidation, clearValidation, showInputError } from './components/validation.js';
+import { enableValidation, clearValidation } from './components/validation.js';
+import {checkLinkType, setNewAvatar, checkResponse, writeUserData, writeNewCardData, loadData} from './components/api.js';
 
 const cardList = document.querySelector('.places__list');
 let cardToAdd;
@@ -36,10 +36,13 @@ const validationConfig = {
   inputErrorClass: 'popup__input_type_error',
   errorClass: 'popup__error_visible'
 };
-const baseUrl = 'https://mesto.nomoreparties.co.';
-const cohortId = 'wff-cohort-7'
-const cohortUrl = baseUrl + '/v1/' + cohortId;
-const token = '1f63c2d3-d524-4b9d-bfad-0d7f89779a3c';
+const apiConfig = {
+  baseUrl: 'https://nomoreparties.co/v1/wff-cohort-7',
+  headers: {
+    authorization: '1f63c2d3-d524-4b9d-bfad-0d7f89779a3c',
+    'Content-Type': 'application/json'
+  }
+}
 
 function handlePopup(popup, textFiledName, textFieldDescription) {
   if (popup.classList.contains('popup_is-opened')) {
@@ -77,47 +80,11 @@ function handleButtonLoading(buttonElement) {
   }
 }
 
-function checkLinkType(link) {
-  return fetch(link, {
-    method: 'HEAD'
-  })
-    .then((res) => {
-      if (res.ok) {
-        if (res.headers.has('Content-Type')) {
-          const contentType = res.headers.get('Content-Type');
-          if (contentType.includes('image')) {
-            return true;
-          } else {
-            showInputError(avatarErrorElement, editAvatarInput, 'Ссылка не ведет на изображение.', validationConfig);
-          }
-        } else {
-          showInputError(avatarErrorElement, editAvatarInput, 'Не удалось определить тип контента.', validationConfig);
-        }
-      }
-      showInputError(avatarErrorElement, editAvatarInput, 'Не удалось получить данные.', validationConfig);
-      return false;
-    })
-}
-
-function setNewAvatar(link) {
-  return fetch(cohortUrl + '/users/me/avatar', {
-    method: 'PATCH',
-    headers: {
-      authorization: token,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      avatar: link
-    })
-  })
-    .then(checkResponse);
-}
-
 function handleEditAvatarForm(evt) {
   evt.preventDefault();
   const link = editAvatarInput.value;
   handleButtonLoading(evt.target.querySelector('.popup__button'));
-  checkLinkType(link)
+  checkLinkType(link, avatarErrorElement, editAvatarInput, validationConfig)
     .then((res) => {
       if (res) {
         return setNewAvatar(link);
@@ -166,78 +133,12 @@ function setUserData(userName, userDesctiption, userAvatar) {
   profileImage.style = `background-image: url(${userAvatar})`;
 }
 
-function checkResponse(res) {
-  if (res.ok) {
-    return res.json();
-  }
-  return Promise.reject(`Не удалось получить данные: ${res.status}`);
-}
-
-function loadUserData() {
-  return fetch(cohortUrl + '/users/me', {
-    headers: {
-      authorization: token
-    }
-  })
-    .then(checkResponse);
-}
-
-function writeUserData(userName, userDesctiption) {
-  return fetch(cohortUrl + '/users/me', {
-    method: 'PATCH',
-    headers: {
-      authorization: token,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name: userName,
-      about: userDesctiption
-    })
-  })
-    .then(checkResponse);
-}
-
-function loadCardsData() {
-  return fetch(cohortUrl + '/cards', {
-    headers: {
-      authorization: token
-    }
-  })
-    .then(checkResponse);
-}
-
 function setCards(cardsData, userId) {
   cardsData.forEach((cardData) => {
     cardToAdd = makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, userId);
     cardList.append(cardToAdd);
   });
 };
-
-function writeNewCardData(cardTitle, cardLink) {
-  return fetch(cohortUrl + '/cards', {
-    method: 'POST',
-    headers: {
-      authorization: token,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name: cardTitle,
-      link: cardLink
-    })
-  })
-    .then(checkResponse);
-}
-
-function loadData() {
-  Promise.all([loadUserData(), loadCardsData()])
-    .then(([userData, cardsData]) => {
-      console.log(userData);
-      console.log(cardsData);
-      setUserData(userData.name, userData.about, userData.avatar);
-      setCards(cardsData, userData['_id']);
-    })
-    .catch((error) => console.log(error));
-}
 
 formEditAvatar.addEventListener('submit', handleEditAvatarForm)
 formEdit.addEventListener('submit', handleEditFormSubmit);
@@ -261,4 +162,4 @@ popups.forEach((popup) => {
 enableValidation(validationConfig);
 loadData();
 
-export { handlePopup, cohortUrl, token, checkResponse };
+export { handlePopup, checkResponse, setUserData, setCards, apiConfig, editAvatarInput, validationConfig };

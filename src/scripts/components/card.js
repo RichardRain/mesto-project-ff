@@ -1,5 +1,5 @@
 import { openPopup, closePopup } from './modal.js';
-import { cohortUrl, token, checkResponse } from '../index.js';
+import { sendDeleteRequest, addLike, removeLike } from './api.js';
 const cardTemplate = document.querySelector('#card-template').content;
 const cardDeletePopup = document.querySelector('.popup_type_delete');
 const deleteButton = cardDeletePopup.querySelector('.popup__button');
@@ -37,17 +37,8 @@ function makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, us
   return cardElement;
 }
 
-function sendDeleteRequest() {
-  return fetch(`${cohortUrl}/cards/${cardToRemoveData['_id']}`, {
-    method: 'DELETE',
-    headers: {
-      authorization: token
-    }
-  });
-}
-
 function removeCard(cardElement) {
-  sendDeleteRequest()
+  sendDeleteRequest(cardToRemoveData)
     .then((res) => {
       if (res.ok) {
         cardElement.remove();
@@ -65,26 +56,6 @@ function handleRemove(cardElement, cardData) {
   cardToRemoveElement = cardElement;
   cardToRemoveData = cardData;
   openPopup(cardDeletePopup);
-}
-
-function addLike(cardData) {
-  return fetch(`${cohortUrl}/cards/likes/${cardData['_id']}`, {
-    method: 'PUT',
-    headers: {
-      authorization: token
-    }
-  })
-    .then(checkResponse);
-}
-
-function removeLike(cardData) {
-  return fetch(`${cohortUrl}/cards/likes/${cardData['_id']}`, {
-    method: 'DELETE',
-    headers: {
-      authorization: token
-    }
-  })
-    .then(checkResponse);
 }
 
 function updateLikesCount(cardData, likeNumberElement) {
