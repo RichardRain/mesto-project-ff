@@ -30,3 +30,7 @@
 .popup_type_delete > .popup__content {
   min-height: 180px;
 }
+
+.popup_type_edit-avatar > .popup__content {
+  min-height: 270px;
+}

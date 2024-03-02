@@ -82,4 +82,4 @@ function enableValidation(validationConfig) {
   });
 }
 
-export {enableValidation, clearValidation};
+export {enableValidation, clearValidation, showInputError};

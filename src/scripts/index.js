@@ -2,18 +2,23 @@ import '../pages/index.css';
 import { initialCards } from './cards.js';
 import { makeCard, handleRemove, handleLikeButton } from './components/card.js';
 import { openPopup, closePopup } from './components/modal.js';
-import { enableValidation, clearValidation } from './components/validation.js';
+import { enableValidation, clearValidation, showInputError } from './components/validation.js';
 
 const cardList = document.querySelector('.places__list');
 let cardToAdd;
 const profileEditButton = document.querySelector('.profile__edit-button');
 const profileAddButton = document.querySelector('.profile__add-button');
+const profileAvatarEditButton = document.querySelector('.profile__image-edit-button');
 const popups = document.querySelectorAll('.popup');
+const popupEditAvatar = document.querySelector('.popup_type_edit-avatar');
 const popupEditType = document.querySelector('.popup_type_edit');
 const popupNewCard = document.querySelector('.popup_type_new-card');
 const popupImageType = document.querySelector('.popup_type_image');
 const popupImageSource = document.querySelector('.popup__image');
 const popupImageCaption = document.querySelector('.popup__caption');
+const formEditAvatar = document.forms['edit-avatar'];
+const editAvatarInput = formEditAvatar.elements.link;
+const avatarErrorElement = document.querySelector('.avatar-link-input-error');
 const formEdit = document.forms['edit-profile'];
 const nameInput = formEdit.elements.name;
 const jobInput = formEdit.elements.description;
@@ -62,25 +67,96 @@ function handleImageClick(cardImage, cardTitle) {
   handlePopup(popupImageType);
 }
 
+function handleButtonLoading(buttonElement) {
+  if (buttonElement.classList.contains('popup__button_loading')) {
+    buttonElement.classList.remove('popup__button_loading');
+    buttonElement.textContent = 'Сохранить';
+  } else {
+    buttonElement.classList.add('popup__button_loading');
+    buttonElement.textContent = 'Сохранить...';
+  }
+}
+
+function checkLinkType(link) {
+  return fetch(link, {
+    method: 'HEAD'
+  })
+    .then((res) => {
+      if (res.ok) {
+        if (res.headers.has('Content-Type')) {
+          const contentType = res.headers.get('Content-Type');
+          if (contentType.includes('image')) {
+            return true;
+          } else {
+            showInputError(avatarErrorElement, editAvatarInput, 'Ссылка не ведет на изображение.', validationConfig);
+          }
+        } else {
+          showInputError(avatarErrorElement, editAvatarInput, 'Не удалось определить тип контента.', validationConfig);
+        }
+      }
+      showInputError(avatarErrorElement, editAvatarInput, 'Не удалось получить данные.', validationConfig);
+      return false;
+    })
+}
+
+function setNewAvatar(link) {
+  return fetch(cohortUrl + '/users/me/avatar', {
+    method: 'PATCH',
+    headers: {
+      authorization: token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      avatar: link
+    })
+  })
+    .then(checkResponse);
+}
+
+function handleEditAvatarForm(evt) {
+  evt.preventDefault();
+  const link = editAvatarInput.value;
+  handleButtonLoading(evt.target.querySelector('.popup__button'));
+  checkLinkType(link)
+    .then((res) => {
+      if (res) {
+        return setNewAvatar(link);
+      }
+      return Promise.reject(`Не удалось получить данные: ${res.status}`);
+    })
+    .then((userData) => {
+      setUserData(userData.name, userData.about, userData.avatar);
+    })
+    .catch((error) => {
+      console.log(error);
+    });
+  handleButtonLoading(evt.target.querySelector('.popup__button'));
+  handlePopup(document.querySelector('.popup_is-opened'));
+}
+
 function handleEditFormSubmit(evt) {
   evt.preventDefault();
+  handleButtonLoading(evt.target.querySelector('.popup__button'));
   writeUserData(nameInput.value, jobInput.value)
     .then((userData) => {
       profileName.textContent = userData.name;
       profileDescription.textContent = userData.about;
     })
     .catch((error) => console.log(error));
+  handleButtonLoading(evt.target.querySelector('.popup__button'));
   handlePopup(document.querySelector('.popup_is-opened'));
 }
 
 function handleNewCardForm(evt) {
   evt.preventDefault();
+  handleButtonLoading(evt.target.querySelector('.popup__button'));
   writeNewCardData(placeNameInput.value, placeLinkInput.value)
     .then((cardData) => {
       const newCard = makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, cardData.owner['_id']);
       cardList.insertBefore(newCard, cardList.firstChild);
     })
     .catch((error) => console.log(error));
+  handleButtonLoading(evt.target.querySelector('.popup__button'));
   handlePopup(document.querySelector('.popup_is-opened'));
 }
 
@@ -163,9 +239,11 @@ function loadData() {
     .catch((error) => console.log(error));
 }
 
+formEditAvatar.addEventListener('submit', handleEditAvatarForm)
 formEdit.addEventListener('submit', handleEditFormSubmit);
 formNewCard.addEventListener('submit', handleNewCardForm);
 
+profileAvatarEditButton.addEventListener('click', () => handlePopup(popupEditAvatar));
 profileEditButton.addEventListener('click', () => handlePopup(popupEditType, nameInput, jobInput));
 profileAddButton.addEventListener('click', () => handlePopup(popupNewCard));
 
