@@ -38,8 +38,10 @@ function hasInvalidInput(inputList) {
 function toggleButtonState(inputList, buttonElement, validationConfig) {
   if (hasInvalidInput(inputList)) {
     buttonElement.classList.add(validationConfig.inactiveButtonClass);
+    buttonElement.disabled = true;
   } else {
     buttonElement.classList.remove(validationConfig.inactiveButtonClass);
+    buttonElement.disabled = false;
   }
 }
 
@@ -48,8 +50,14 @@ function clearValidation(formElement, validationConfig) {
   const buttonElement = formElement.querySelector('.popup__button');
   inputList.forEach((inputElement) => {
     const errorElement = findErrorElement(formElement, inputElement);
-    checkInputValidity(errorElement, inputElement, validationConfig);
+    hideInputError(errorElement, inputElement, validationConfig);
   });
+  toggleButtonState(inputList, buttonElement, validationConfig);
+}
+
+function checkFormValidity(formElement, inputElement, inputList, buttonElement, validationConfig) {
+  const errorElement = findErrorElement(formElement, inputElement);
+  checkInputValidity(errorElement, inputElement, validationConfig);
   toggleButtonState(inputList, buttonElement, validationConfig);
 }
 
@@ -58,9 +66,7 @@ function setEventListeners(formElement, validationConfig) {
   const buttonElement = formElement.querySelector(validationConfig.submitButtonSelector);
   inputList.forEach((inputElement) => {
     inputElement.addEventListener('input', function () {
-      const errorElement = findErrorElement(formElement, inputElement);
-      checkInputValidity(errorElement, inputElement, validationConfig);
-      toggleButtonState(inputList, buttonElement, validationConfig);
+      checkFormValidity(formElement, inputElement, inputList, buttonElement, validationConfig);
     });
   });
 
@@ -68,9 +74,7 @@ function setEventListeners(formElement, validationConfig) {
   // Предотвращает появление бага: инпут остается невалидным, если удалить невалидный символ через 'backspace'
   inputList.forEach((inputElement) => {
     inputElement.addEventListener('focusout', function () {
-      const errorElement = findErrorElement(formElement, inputElement);
-      checkInputValidity(errorElement, inputElement, validationConfig);
-      toggleButtonState(inputList, buttonElement, validationConfig);
+      checkFormValidity(formElement, inputElement, inputList, buttonElement, validationConfig);
     });
   });
 }
@@ -82,4 +86,4 @@ function enableValidation(validationConfig) {
   });
 }
 
-export {enableValidation, clearValidation, showInputError};
+export { enableValidation, clearValidation, showInputError, checkFormValidity };

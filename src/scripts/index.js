@@ -1,11 +1,10 @@
 import '../pages/index.css';
-import { makeCard, handleRemove, handleLikeButton } from './components/card.js';
+import { makeCard, handleLikeButton } from './components/card.js';
 import { openPopup, closePopup } from './components/modal.js';
-import { enableValidation, clearValidation } from './components/validation.js';
-import {checkLinkType, setNewAvatar, checkResponse, writeUserData, writeNewCardData, loadData} from './components/api.js';
+import { enableValidation, clearValidation, checkFormValidity } from './components/validation.js';
+import { checkLinkType, setNewAvatar, checkResponse, writeUserData, writeNewCardData, loadData, sendDeleteRequest } from './components/api.js';
 
 const cardList = document.querySelector('.places__list');
-let cardToAdd;
 const profileEditButton = document.querySelector('.profile__edit-button');
 const profileAddButton = document.querySelector('.profile__add-button');
 const profileAvatarEditButton = document.querySelector('.profile__image-edit-button');
@@ -36,28 +35,30 @@ const validationConfig = {
   inputErrorClass: 'popup__input_type_error',
   errorClass: 'popup__error_visible'
 };
-const apiConfig = {
-  baseUrl: 'https://nomoreparties.co/v1/wff-cohort-7',
-  headers: {
-    authorization: '1f63c2d3-d524-4b9d-bfad-0d7f89779a3c',
-    'Content-Type': 'application/json'
-  }
-}
+const cardDeletePopup = document.querySelector('.popup_type_delete');
+const deleteButton = cardDeletePopup.querySelector('.popup__button');
+let cardToRemoveElement;
+let cardToRemoveData;
 
 function handlePopup(popup, textFiledName, textFieldDescription) {
+  const formElement = popup.querySelector('.popup__form');
   if (popup.classList.contains('popup_is-opened')) {
     closePopup(popup);
-    if (popup.querySelector('.popup__form')) {
-      popup.querySelector('.popup__form').reset();
+    formElement?.reset();
+    if (formElement) {
+      clearValidation(formElement, validationConfig);
     }
   } else {
     if (popup.classList.contains('popup_type_edit')) {
       textFiledName.value = profileName.textContent;
       textFieldDescription.value = profileDescription.textContent;
     }
-    if (popup.querySelector('.popup__form')) {
-      const formElement = popup.querySelector('.popup__form');
-      clearValidation(formElement, validationConfig);
+    if (formElement) {
+      const inputList = Array.from(formElement.querySelectorAll(validationConfig.inputSelector));
+      const buttonElement = formElement.querySelector(validationConfig.submitButtonSelector);
+      inputList.forEach((inputElement) => {
+          checkFormValidity(formElement, inputElement, inputList, buttonElement, validationConfig);
+      });
     }
     openPopup(popup);
   }
@@ -67,7 +68,7 @@ function handleImageClick(cardImage, cardTitle) {
   popupImageSource.src = cardImage;
   popupImageSource.alt = cardTitle;
   popupImageCaption.textContent = cardTitle;
-  handlePopup(popupImageType);
+  openPopup(popupImageType);
 }
 
 function handleButtonLoading(buttonElement) {
@@ -96,9 +97,11 @@ function handleEditAvatarForm(evt) {
     })
     .catch((error) => {
       console.log(error);
+    })
+    .finally(() => {
+      handleButtonLoading(evt.target.querySelector('.popup__button'));
     });
-  handleButtonLoading(evt.target.querySelector('.popup__button'));
-  handlePopup(document.querySelector('.popup_is-opened'));
+  handlePopup(popupEditAvatar);
 }
 
 function handleEditFormSubmit(evt) {
@@ -109,9 +112,11 @@ function handleEditFormSubmit(evt) {
       profileName.textContent = userData.name;
       profileDescription.textContent = userData.about;
     })
-    .catch((error) => console.log(error));
-  handleButtonLoading(evt.target.querySelector('.popup__button'));
-  handlePopup(document.querySelector('.popup_is-opened'));
+    .catch((error) => console.log(error))
+    .finally(() => {
+      handleButtonLoading(evt.target.querySelector('.popup__button'));
+    });
+  handlePopup(popupEditType);
 }
 
 function handleNewCardForm(evt) {
@@ -120,11 +125,13 @@ function handleNewCardForm(evt) {
   writeNewCardData(placeNameInput.value, placeLinkInput.value)
     .then((cardData) => {
       const newCard = makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, cardData.owner['_id']);
-      cardList.insertBefore(newCard, cardList.firstChild);
+      cardList.prepend(newCard);
     })
-    .catch((error) => console.log(error));
-  handleButtonLoading(evt.target.querySelector('.popup__button'));
-  handlePopup(document.querySelector('.popup_is-opened'));
+    .catch((error) => console.log(error))
+    .finally(() => {
+      handleButtonLoading(evt.target.querySelector('.popup__button'));
+    });
+  handlePopup(popupNewCard);
 }
 
 function setUserData(userName, userDesctiption, userAvatar) {
@@ -135,10 +142,33 @@ function setUserData(userName, userDesctiption, userAvatar) {
 
 function setCards(cardsData, userId) {
   cardsData.forEach((cardData) => {
-    cardToAdd = makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, userId);
+    const cardToAdd = makeCard(cardData, handleRemove, handleLikeButton, handleImageClick, userId);
     cardList.append(cardToAdd);
   });
 };
+
+function handlePageLoad() {
+  loadData()
+    .then(([userData, cardsData]) => {
+      setUserData(userData.name, userData.about, userData.avatar);
+      setCards(cardsData, userData['_id']);
+    })
+    .catch((error) => console.log(error));
+}
+
+function removeCard(cardElement) {
+  sendDeleteRequest(cardToRemoveData)
+    .then(checkResponse)
+    .then(() => {
+      cardElement.remove();
+    });
+}
+
+function handleRemove(cardElement, cardData) {
+  cardToRemoveElement = cardElement;
+  cardToRemoveData = cardData;
+  openPopup(cardDeletePopup);
+}
 
 formEditAvatar.addEventListener('submit', handleEditAvatarForm)
 formEdit.addEventListener('submit', handleEditFormSubmit);
@@ -148,18 +178,22 @@ profileAvatarEditButton.addEventListener('click', () => handlePopup(popupEditAva
 profileEditButton.addEventListener('click', () => handlePopup(popupEditType, nameInput, jobInput));
 profileAddButton.addEventListener('click', () => handlePopup(popupNewCard));
 
+deleteButton.addEventListener('click', () => {
+  if (cardToRemoveElement) {
+    removeCard(cardToRemoveElement);
+    closePopup(cardDeletePopup);
+  }
+});
+
 popups.forEach((popup) => {
   popup.addEventListener('mousedown', (evt) => {
-    if (evt.target.classList.contains('popup_is-opened')) {
+    if (evt.target.classList.contains('popup_is-opened') || evt.target.classList.contains('popup__close')) {
       handlePopup(popup);
     }
-    if (evt.target.classList.contains('popup__close')) {
-      handlePopup(popup);
-    }
-  })
+  });
 });
 
 enableValidation(validationConfig);
-loadData();
+handlePageLoad();
 
-export { handlePopup, checkResponse, setUserData, setCards, apiConfig, editAvatarInput, validationConfig };
+export { handlePopup, checkResponse, editAvatarInput, validationConfig };

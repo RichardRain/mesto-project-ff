@@ -1,5 +1,12 @@
 import {showInputError} from './validation';
-import {setUserData, setCards, apiConfig} from '../index';
+
+const apiConfig = {
+  baseUrl: 'https://nomoreparties.co/v1/wff-cohort-7',
+  headers: {
+    authorization: '1f63c2d3-d524-4b9d-bfad-0d7f89779a3c',
+    'Content-Type': 'application/json'
+  }
+}
 
 function checkLinkType(link, avatarErrorElement, editAvatarInput, validationConfig) {
   return fetch(link, {
@@ -80,12 +87,7 @@ function writeNewCardData(cardTitle, cardLink) {
 }
 
 function loadData() {
-  Promise.all([loadUserData(), loadCardsData()])
-    .then(([userData, cardsData]) => {
-      setUserData(userData.name, userData.about, userData.avatar);
-      setCards(cardsData, userData['_id']);
-    })
-    .catch((error) => console.log(error));
+  return Promise.all([loadUserData(), loadCardsData()]);
 }
 
 function sendDeleteRequest(cardToRemoveData) {
